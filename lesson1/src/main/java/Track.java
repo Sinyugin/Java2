@@ -9,7 +9,6 @@ public class Track implements Barrier {
     @Override
     public void overcome(Player player) {
         player.run(this);
-
     }
 
     public int getLength() {
