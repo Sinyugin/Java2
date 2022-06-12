@@ -3,9 +3,9 @@ public class Main {
     public static int size = 4;
 
     public static void main(String[] args) {
-
-        String[][] myArray = new String[size][size];
         try {
+        String[][] myArray = new String[size][size];
+
             myArray[0][0] = "1";
             myArray[0][1] = "2";
             myArray[0][2] = "3";
@@ -18,34 +18,40 @@ public class Main {
             myArray[2][1] = "10";
             myArray[2][2] = "11";
             myArray[2][3] = "12";
-            myArray[3][0] = "zx";
+            myArray[3][0] = "fghy"; //другой формат данных
             myArray[3][1] = "14";
             myArray[3][2] = "15";
             myArray[3][3] = "16";
-            myArray[7][5] = "16";
+            myArray[7][5] = "17"; //лишний элемент массива для проверки исключения
+
+            checkArray(myArray);
+
         } catch (ArrayIndexOutOfBoundsException e) {
-            System.out.println("Превышен размер массива ");
+            System.out.println("Превышен размер массива");
+            throw new MyArraySizeException();
+
+
+        } catch (MyArrayDataException e) {
+            MyArrayDataException myArrayDataException = new MyArrayDataException();
+            myArrayDataException.message();
             e.printStackTrace();
         }
-
-        checkArray(myArray);
     }
 
-    public static int checkArray(String[][] myArray) {
-        int result = 0;
+    public static int checkArray(String[][] myArray) throws MyArrayDataException {
+
         int summa = 0;
         for (int i = 0; i < myArray.length; i++) {
             for (int j = 0; j < myArray[i].length; j++) {
-                try {
-                    summa = Integer.parseInt(myArray[i][j]);
-                    result = result + summa;
-                } catch (NumberFormatException e) {
-                    System.out.println("Не правильный формат данных ");
-                    e.printStackTrace();
-                }
+                    try {
+                        summa = summa + Integer.parseInt(myArray[i][j]);
+                    } catch (NumberFormatException e) {
+                        throw new MyArrayDataException();
+                    }
             }
         }
-        System.out.println("Сумма всех элементов равна " + result);
-        return result;
+
+        System.out.println("Сумма всех элементов равна " + summa);
+        return (summa);
     }
 }
