@@ -1,6 +1,9 @@
 public class MyArraySizeException extends ArrayIndexOutOfBoundsException{
 
-    public MyArraySizeException(String message) {
-        super(message);
+    public MyArraySizeException() {
+
+    }
+    void message (){
+        System.out.println("Превышен размер массива.");
     }
 }

@@ -1,6 +1,9 @@
-public class MyArrayDataException extends NumberFormatException {
+public class MyArrayDataException extends Exception {
 
-    public MyArrayDataException(String message) {
-        super(message);
+    public MyArrayDataException() {
+
+    }
+    void message(){
+        System.out.println("Не верный формат данных");
     }
 }
