@@ -1,9 +1,15 @@
 package com.example.javafxchat44.client;
 
+import com.example.javafxchat44.Command;
+import javafx.application.Platform;
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
+import java.util.Arrays;
+
+import static com.example.javafxchat44.Command.*;
 
 public class ChatClient {
 
@@ -23,70 +29,104 @@ public class ChatClient {
         out = new DataOutputStream(socket.getOutputStream());
         new Thread(() -> {
             try {
-                waitAuth();
-                readMessages();
+                if (waitAuth()){
+                    readMessages();
+                }
             } catch (IOException e) {
                 e.printStackTrace();
-            }finally {
+            } finally {
                 closeConnection();
             }
         }).start();
     }
 
-    private void waitAuth() throws IOException {
-        while (true){
+    private boolean waitAuth() throws IOException {
+        while (true) {
             final String message = in.readUTF();
-            if (message.startsWith("/authok")){ // /authok nick
-                final String[] split = message.split("\\p{Blank}+");
-                final String nick = split[1];
+            final Command command = getCommand(message);
+            final String[] params = command.parse(message);
+            if (command == Command.AUTHOK) { // /authok nick
+                final String nick = params[0];
                 controller.setAuth(true);
                 controller.addMessage("Успешная авторизация под ником " + nick);
-                break;
+                return true;
+            }
+            if (command == Command.ERROR) {
+                Platform.runLater(() -> controller.showError(params[0]));
+                continue;
+            }
+            if (command == STOP){
+                Platform.runLater(() -> controller.showError("Истекло время на авторизацию, перезапустите приложение"));
+                try {
+                    Thread.sleep(5000);
+                    sendMessage(END);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                return false;
             }
         }
     }
 
+
     private void closeConnection() {
-        if (in != null){
+        if (in != null) {
             try {
                 in.close();
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
-        if (out != null){
+        if (out != null) {
             try {
                 out.close();
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
-        if (socket != null){
+        if (socket != null) {
             try {
                 socket.close();
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
+        System.exit(0);
     }
 
+
     private void readMessages() throws IOException {
-        while (true){
+        while (true) {
             final String message = in.readUTF();
-            if ("/end".equals(message)){
+            final Command command = getCommand(message);
+            if (END == command) {
                 controller.setAuth(false);
                 break;
             }
-            controller.addMessage(message);
+            final String[] params = command.parse(message);
+            if (ERROR == command) {
+                String messageError = params[0];
+                Platform.runLater(() -> controller.showError(messageError));
+                continue;
+            }
+            if (MESSAGE == command) {
+                Platform.runLater(() -> controller.addMessage(params[0]));
+            }
+            if (CLIENTS == command) {
+                Platform.runLater(() -> controller.updateClientsList(params));
+            }
         }
     }
 
-
-    public void sendMessage(String message) {
+    private void sendMessage(String message) {
         try {
             out.writeUTF(message);
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public void sendMessage(Command command, String... params) {
+        sendMessage(command.collectMessage(params));
     }
 }

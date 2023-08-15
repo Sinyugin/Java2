@@ -1,31 +1,32 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.layout.VBox?>
+<?import javafx.geometry.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
 
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.layout.HBox?>
-<?import javafx.scene.control.TextArea?>
-<?import javafx.scene.control.TextField?>
-<?import javafx.scene.control.PasswordField?>
-<VBox alignment="CENTER" spacing="5.0" xmlns:fx="http://javafx.com/fxml"
-      fx:controller="com.example.javafxchat44.client.ChatController">
+<VBox alignment="CENTER" prefHeight="241.0" prefWidth="400.0" spacing="5.0" xmlns="http://javafx.com/javafx/17.0.2-ea"
+      xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.javafxchat44.client.ChatController">
     <padding>
         <Insets bottom="5.0" left="5.0" right="5.0" top="5.0"/>
     </padding>
-    <VBox>
-        <HBox fx:id="authBox">
+    <VBox alignment="TOP_CENTER" prefWidth="400.0">
+        <HBox fx:id="authBox" alignment="TOP_CENTER">
             <TextField fx:id="loginField" promptText="login"/>
             <PasswordField fx:id="passField" promptText="password"/>
-            <Button text="Sign in" onAction="#signinBtnClick"/>
+            <Button onAction="#signinBtnClick" text="Sign in"/>
         </HBox>
-        <VBox fx:id="messageBox" visible="false">
-            <TextArea fx:id="messageArea" editable="false" VBox.vgrow="ALWAYS"/>
-            <HBox spacing="5">
-                <TextField fx:id="MessageField" VBox.vgrow="ALWAYS" minWidth="260"/>
-                <Button text="Send" defaultButton="true" onAction="#clickSendButton"/>
-            </HBox>
-        </VBox>
+        <HBox fx:id="messageBox" prefWidth="400.0" visible="false">
+            <VBox>
+                <TextArea fx:id="messageArea" editable="false" prefWidth="400.0" VBox.vgrow="ALWAYS"/>
+                <HBox spacing="5">
+                    <TextField fx:id="MessageField" minWidth="280" VBox.vgrow="ALWAYS"/>
+                    <Button defaultButton="true" onAction="#clickSendButton" text="Send"/>
+                </HBox>
+            </VBox>
+            <VBox>
+                <Button text="Sign out" onAction="#signOutClick"/>
+                <ListView fx:id="clientList" minWidth="200" maxWidth="200" onMouseClicked="#selectClient"/>
+            </VBox>
+        </HBox>
     </VBox>
-
 </VBox>

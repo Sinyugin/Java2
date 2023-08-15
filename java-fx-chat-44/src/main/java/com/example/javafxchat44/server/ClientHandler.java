@@ -1,18 +1,21 @@
 package com.example.javafxchat44.server;
 
+import com.example.javafxchat44.Command;
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 
 public class ClientHandler {
-
+    private static final int AUTH_TIMEOUT = 120_000;
     private Socket socket;
     private ChatServer server;
     private DataInputStream in;
     private DataOutputStream out;
     private String nick;
     private AuthService authService;
+    private Thread timeoutThread;
 
     public ClientHandler(Socket socket, ChatServer server, AuthService authService) {
 
@@ -22,11 +25,24 @@ public class ClientHandler {
             this.authService = authService;
             this.in = new DataInputStream(socket.getInputStream());
             this.out = new DataOutputStream(socket.getOutputStream());
+
+            this.timeoutThread = new Thread(() -> {
+                try {
+                    Thread.sleep(AUTH_TIMEOUT);
+                    sendMessage(Command.STOP);
+                } catch (InterruptedException e) {
+                    // В другом потоке была успешная авторизация
+                    System.out.println("Успешная авторизация");
+                }
+            });
+            timeoutThread.start();
+
             new Thread(() -> {
-                try{
-                    authService();
-                    readMessages();
-                }finally {
+                try {
+                    if (authService()) {
+                        readMessages();
+                    }
+                } finally {
                     closeConnection();
                 }
             }).start();
@@ -36,52 +52,61 @@ public class ClientHandler {
 
     }
 
-    private void authService() {// /auth login1 pass1
-        while (true){
+    private boolean authService() {// /auth login1 pass1
+        while (true) {
             try {
                 final String message = in.readUTF();
-                if (message.startsWith("/auth")){
-                    final String[] split = message.split("\\p{Blank}+");
-                    final String login = split[1];
-                    final String password = split[2];
-                    final String nick = authService.getNickByLoginAndPassword(login, password);
-                    if (nick != null){
-                        if (server.isNickBusy(nick)){
-                            sendMessage("Пользователь уже авторизован");
-                            continue;
+                if (Command.isCommand(message)) {
+                    final Command command = Command.getCommand(message);
+                    if (command == Command.AUTH) {
+                        final String[] params = command.parse(message);
+                        final String login = params[0];
+                        final String password = params[1];
+                        final String nick = authService.getNickByLoginAndPassword(login, password);
+                        if (nick != null) {
+                            if (server.isNickBusy(nick)) {
+                                sendMessage(Command.ERROR, "Пользователь уже авторизован");
+                                continue;
+                            }
+                            this.timeoutThread.interrupt();
                         }
-                        sendMessage("/authok " + nick);
+                        sendMessage(Command.AUTHOK, nick);
                         this.nick = nick;
-                        server.broadcast("Пользователь " + nick + "зашел в чат");
+                        server.broadcast(Command.MESSAGE, "Пользователь " + nick + "зашел в чат");
                         server.subscribe(this);
-                        break;
-                    }else {
-                        sendMessage("Неверный логин и пароль");
+                        return true;
+                    } else {
+                        sendMessage(Command.ERROR, "Неверный логин и пароль");
                     }
                 }
+
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
     }
 
+    public void sendMessage(Command command, String... params) {
+        sendMessage(command.collectMessage(params));
+    }
+
     private void closeConnection() {
-        sendMessage("/end");
-        if (in != null){
+        sendMessage(Command.END);
+        if (in != null) {
             try {
                 in.close();
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
-        if (out != null){
+        if (out != null) {
             try {
                 out.close();
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
-        if (socket != null){
+        if (socket != null) {
             server.unsubsribe(this);
             try {
                 socket.close();
@@ -91,7 +116,7 @@ public class ClientHandler {
         }
     }
 
-    public void sendMessage(String message) {
+    private void sendMessage(String message) {
         try {
             out.writeUTF(message);
         } catch (IOException e) {
@@ -101,22 +126,19 @@ public class ClientHandler {
 
 
     private void readMessages() {
-        while (true){
+        while (true) {
             try {
                 final String message = in.readUTF();
-                if ("/end".equals(message)){
+                final Command command = Command.getCommand(message);
+                if (command == Command.END) {
                     break;
-                }else
-                if (message.startsWith("/w")){
-                    final String[] split = message.split("\\p{Blank}+");
-                    final String nickTo = split[1];
-
-                    final String[] tempMessage = new String[split.length - 2]; //временный массив из слов сообщения
-                    System.arraycopy(split,2, tempMessage, 0,split.length - 2);//копируем только сообщение
-                    String sendMessage = String.join(" ", tempMessage);//преобразовываем массив в строку
-                    server.broadcastNick(nickTo, sendMessage, nick);
-                    }else
-                server.broadcast(nick + ": " + message);
+                }
+                if (command == Command.PRIVATE_MESSAGE) {
+                    final String[] params = command.parse(message);
+                    server.sendPrivateMessage(this, params[0], params[1]);
+                    continue;
+                }
+                server.broadcast(Command.MESSAGE, nick + ": " + command.parse(message)[0]);
             } catch (IOException e) {
                 e.printStackTrace();
             }
